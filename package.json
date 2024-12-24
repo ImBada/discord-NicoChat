@@ -1,0 +1,25 @@
+{
+	"name": "discord-nicochat",
+	"version": "0.0.1",
+	"type": "module",
+	"scripts": {
+		"dev": "vite dev",
+		"build": "vite build",
+		"preview": "vite preview",
+		"format": "prettier --write .",
+		"lint": "prettier --check ."
+	},
+	"devDependencies": {
+		"@sveltejs/adapter-auto": "^3.3.1",
+		"@sveltejs/kit": "^2.15.0",
+		"@sveltejs/vite-plugin-svelte": "^5.0.3",
+		"prettier": "^3.4.2",
+		"prettier-plugin-svelte": "^3.3.2",
+		"svelte": "^5.16.0",
+		"sveltekit-sse": "^0.13.11",
+		"vite": "^6.0.5"
+	},
+	"dependencies": {
+		"discord.js": "^14.16.3"
+	}
+}
