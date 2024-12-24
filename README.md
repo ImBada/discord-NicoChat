@@ -1,4 +1,6 @@
-Make a Discord channel for a Nico-style chat page.
+### Make a Discord channel for a Nico-style chat page.
+
+스티커, 이모티콘, 애니메이션 이모티콘 다 됨.
 
 # 어캐쓰나요
 0. node 까세요 https://nodejs.org/
