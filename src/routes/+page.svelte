@@ -28,7 +28,7 @@
         parsedContent = stickers
           .map(
             (sticker) =>
-              `<img src="https://cdn.discordapp.com/stickers/${sticker}.png" class="sticker" />`
+              `<img src="https://cdn.discordapp.com/stickers/${parseCustomStickers(sticker)}.png" class="sticker" />`
           )
           .join(" ");
       } else {
@@ -59,6 +59,12 @@
   function parseCustomEmojis(text) {
     return text.replace(/<(.?):(\w+):(\d+)>/g, (match, animated, name, id) => {
       return `<img src="https://cdn.discordapp.com/emojis/${id}.${animated ? "gif" : "png"}" alt="${name}" class="emote" />`;
+    });
+  }
+
+  function parseCustomStickers(text) {
+    return text.replace(/<(.?):(\w+):(\d+)>/g, (match, animated, name, id) => {
+      return `${id}.${animated ? "gif" : "png"}`;
     });
   }
 
