@@ -12,8 +12,8 @@
 6. 아래 내용 넣으세요.
 
 ```
-  VITE_DISCORD_TOKEN=아까 복사한 토큰
-  VITE_CHANNEL_ID=원하는채널ID (디스코드 설정->고급->개발자모드 켜면 채널에 우클릭했을 때 ID 복사 가능)
+  DISCORD_TOKEN=아까 복사한 토큰
+  CHANNEL_ID=원하는채널ID (디스코드 설정->고급->개발자모드 켜면 채널에 우클릭했을 때 ID 복사 가능)
 ```
 
 8. 소스코드 경로에서 터미널 열고 npm install

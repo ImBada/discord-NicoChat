@@ -1,5 +1,6 @@
 import { Client, GatewayIntentBits } from 'discord.js';
 import { produce } from 'sveltekit-sse';
+import { env } from '$env/dynamic/private';
 
 const discordClient = new Client({
     intents: [
@@ -15,10 +16,10 @@ discordClient.once('ready', () => {
     console.log(`Logged in as ${discordClient.user.tag}`);
 });
 
-discordClient.login(import.meta.env.VITE_DISCORD_TOKEN);
+discordClient.login(env.DISCORD_TOKEN);
 
 discordClient.on('messageCreate', (message) => {
-    if (!message.author.bot && message.channel.id === import.meta.env.VITE_CHANNEL_ID) {
+    if (!message.author.bot && message.channel.id === env.CHANNEL_ID) {
         console.log(`New message: ${message.content}`);
 
         const payload = JSON.stringify({
