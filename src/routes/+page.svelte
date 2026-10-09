@@ -17,6 +17,8 @@
     // 새로고침 전까지 채팅이 안 보이게 됨. 끊기면 직접 재연결하고,
     // 서버 heartbeat(15초 주기)가 한동안 안 오면 죽은 연결로 보고 강제로 끊어서 재연결시킴.
     let lastEventAt = Date.now();
+    let reconnectTimer = null; // 재연결 대기 중이면 중복 재연결 방지
+    let disposed = false; // 컴포넌트 정리 중 select store 해제로 닫힐 때는 재연결하지 않음
 
     const sse = source("/sse", {
       cache: false,
@@ -25,8 +27,10 @@
         lastEventAt = Date.now();
       },
       close({ connect }) {
+        if (disposed || reconnectTimer) return;
         console.log("SSE closed, reconnecting...");
-        setTimeout(() => {
+        reconnectTimer = setTimeout(() => {
+          reconnectTimer = null;
           lastEventAt = Date.now();
           connect();
         }, 1000);
@@ -42,6 +46,7 @@
     const unsubscribeHeartbeat = heartbeatSource.subscribe(() => (lastEventAt = Date.now()));
 
     const watchdog = setInterval(() => {
+      if (reconnectTimer) return;
       if (Date.now() - lastEventAt > 45_000) {
         console.log("SSE stalled, forcing reconnect");
         lastEventAt = Date.now();
@@ -90,7 +95,9 @@
     });
 
     return () => {
+      disposed = true;
       clearInterval(watchdog);
+      clearTimeout(reconnectTimer);
       unsubscribeHeartbeat();
       unsubscribeMessage();
     };
@@ -102,12 +109,32 @@
   }
 
   // 배율이 커져도 scale=1일 때와 같은 px/s로 흐르도록 이동 거리(화면 폭 + 메시지 폭) 비율만큼 시간 보정
-  // 주의: duration 없이(0s) offsetWidth를 읽으면 Chrome 등에서 애니메이션이 0초로 시작·종료되어
-  // animationend가 바로 발생하고 메시지가 즉시 삭제됨. 그래서 inline style에 기본 duration을 넣어둠.
+  // 이모티콘/스티커 이미지가 로드되기 전엔 폭이 0에 가까우므로, 로드될 때까지(최대 3초) 화면 밖에서 멈춰 있다가 출발
+  // 주의: CSS에 기본 duration이 없으면(0s) offsetWidth를 읽는 순간 Chrome 등에서 애니메이션이 바로 끝나
+  // animationend가 발생하고 메시지가 즉시 삭제됨
   function keepSpeed(node, seconds) {
-    const vw = window.innerWidth;
-    const w = node.offsetWidth;
-    node.style.animationDuration = `${(seconds * (vw + w)) / (vw + w / scale)}s`;
+    node.style.animationPlayState = "paused";
+
+    let started = false;
+    const start = () => {
+      if (started) return;
+      started = true;
+      clearTimeout(timeout);
+      const vw = window.innerWidth;
+      const w = node.offsetWidth;
+      node.style.animationDuration = `${(seconds * (vw + w)) / (vw + w / scale)}s`;
+      node.style.animationPlayState = "running";
+    };
+
+    const images = [...node.querySelectorAll("img")].filter((img) => !img.complete);
+    let pending = images.length;
+    const timeout = pending ? setTimeout(start, 3000) : null;
+    for (const img of images) {
+      const done = () => --pending === 0 && start();
+      img.addEventListener("load", done, { once: true });
+      img.addEventListener("error", done, { once: true });
+    }
+    if (!pending) start();
   }
 
   function parseCustomEmojis(text) {
@@ -134,7 +161,7 @@
       data-id={message.id}
       onanimationend={() => handleAnimationEnd(message.id)}
       use:keepSpeed={message.speed}
-      style="animation-duration: {message.speed}s; color: {message.color}; top: max(0px, calc((100vh - var(--h)) * {message.top}));"
+      style="color: {message.color}; top: max(0px, calc((100vh - var(--h)) * {message.top}));"
     >
       {@html message.content}
     </div>
@@ -172,7 +199,7 @@
       var(--o) calc(-1 * var(--o)) 0 #000,
       calc(-1 * var(--o)) var(--o) 0 #000,
       var(--o) var(--o) 0 #000;
-    animation: scroll linear forwards;
+    animation: scroll 10s linear forwards; /* 실제 duration은 keepSpeed에서 설정 */
     --h: calc(var(--sticker-size) + 0.35em); /* 메시지 최대 높이 (스티커 + 글자 descent) */
   }
 
