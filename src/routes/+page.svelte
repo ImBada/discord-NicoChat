@@ -102,6 +102,8 @@
   }
 
   // 배율이 커져도 scale=1일 때와 같은 px/s로 흐르도록 이동 거리(화면 폭 + 메시지 폭) 비율만큼 시간 보정
+  // 주의: duration 없이(0s) offsetWidth를 읽으면 Chrome 등에서 애니메이션이 0초로 시작·종료되어
+  // animationend가 바로 발생하고 메시지가 즉시 삭제됨. 그래서 inline style에 기본 duration을 넣어둠.
   function keepSpeed(node, seconds) {
     const vw = window.innerWidth;
     const w = node.offsetWidth;
@@ -132,7 +134,7 @@
       data-id={message.id}
       onanimationend={() => handleAnimationEnd(message.id)}
       use:keepSpeed={message.speed}
-      style="color: {message.color}; top: max(0px, calc((100vh - var(--h)) * {message.top}));"
+      style="animation-duration: {message.speed}s; color: {message.color}; top: max(0px, calc((100vh - var(--h)) * {message.top}));"
     >
       {@html message.content}
     </div>
