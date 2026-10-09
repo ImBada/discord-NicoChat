@@ -16,7 +16,10 @@ discordClient.once('ready', () => {
     console.log(`Logged in as ${discordClient.user.tag}`);
 });
 
-discordClient.login(env.DISCORD_TOKEN);
+// 로그인 실패(토큰 오류, 일시적 네트워크 장애 등)가 처리되지 않으면 서버 프로세스 전체가 죽음
+Promise.resolve()
+    .then(() => discordClient.login(env.DISCORD_TOKEN))
+    .catch((error) => console.error('Discord login failed:', error));
 
 discordClient.on('messageCreate', (message) => {
     if (!message.author.bot && message.channel.id === env.CHANNEL_ID) {
@@ -47,7 +50,14 @@ export const POST = async () => {
         // 채팅이 없는 경우에도 응답이 즉시 시작되도록 초기 ping을 보냄
         emit('ping', '');
 
+        // 클라이언트가 죽은 연결을 감지할 수 있도록 주기적으로 heartbeat 전송
+        // (기본 ping은 data가 항상 ''라 store 값이 안 바뀌어서 클라이언트에서 감지 불가)
+        const heartbeat = setInterval(() => {
+            emit('heartbeat', String(Date.now()));
+        }, 15_000);
+
         return () => {
+            clearInterval(heartbeat);
             console.log(`Client disconnected: ${clientId}`);
             clients = clients.filter((client) => client.id !== clientId);
         };

@@ -13,9 +13,44 @@
     const s = parseFloat(new URLSearchParams(location.search).get("scale"));
     if (Number.isFinite(s)) scale = Math.min(Math.max(s, 0.1), 10);
 
-    const messageSource = source("/sse").select("chatMessage");
+    // sveltekit-sse는 서버가 스트림을 정상 종료하면(서버 재시작, 프록시/네트워크 끊김 등) 재연결하지 않아
+    // 새로고침 전까지 채팅이 안 보이게 됨. 끊기면 직접 재연결하고,
+    // 서버 heartbeat(15초 주기)가 한동안 안 오면 죽은 연결로 보고 강제로 끊어서 재연결시킴.
+    let lastEventAt = Date.now();
 
-    messageSource.subscribe((event) => {
+    const sse = source("/sse", {
+      cache: false,
+      open() {
+        console.log("SSE opened");
+        lastEventAt = Date.now();
+      },
+      close({ connect }) {
+        console.log("SSE closed, reconnecting...");
+        setTimeout(() => {
+          lastEventAt = Date.now();
+          connect();
+        }, 1000);
+      },
+      error({ error }) {
+        console.log("SSE error", error);
+      },
+    });
+
+    const heartbeatSource = sse.select("heartbeat");
+    const messageSource = sse.select("chatMessage");
+
+    const unsubscribeHeartbeat = heartbeatSource.subscribe(() => (lastEventAt = Date.now()));
+
+    const watchdog = setInterval(() => {
+      if (Date.now() - lastEventAt > 45_000) {
+        console.log("SSE stalled, forcing reconnect");
+        lastEventAt = Date.now();
+        sse.close(); // close 콜백이 호출되며 재연결됨
+      }
+    }, 5_000);
+
+    const unsubscribeMessage = messageSource.subscribe((event) => {
+      lastEventAt = Date.now();
       if (!event) {
         console.log("SSE connected");
         return;
@@ -53,6 +88,12 @@
 
       messages = [...messages, message];
     });
+
+    return () => {
+      clearInterval(watchdog);
+      unsubscribeHeartbeat();
+      unsubscribeMessage();
+    };
   });
 
   // 속도 계산 (메시지 길이에 따라, 최소 2초)
