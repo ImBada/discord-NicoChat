@@ -5,10 +5,14 @@
   let cap = $state(9999); // 메시지 길이 제한
   let cmd = $state(false); // 명령어 차단 여부
   let clr = $state("#fff"); // 메시지 기본 색상
+  let scale = $state(1); // 출력 비율 (URL 인자 ?scale=1.5 등)
 
   let messages = $state([]);
 
   onMount(() => {
+    const s = parseFloat(new URLSearchParams(location.search).get("scale"));
+    if (Number.isFinite(s)) scale = Math.min(Math.max(s, 0.1), 10);
+
     const messageSource = source("/sse").select("chatMessage");
 
     messageSource.subscribe((event) => {
@@ -21,6 +25,10 @@
 
       const text = data.content;
       const stickers = data.stickers || [];
+
+      // 명령어 및 메시지 길이 제한 필터
+      if (cmd && text.startsWith("!")) return;
+      if (text.length > cap) return;
 
       // 스티커가 포함된 메시지인지 확인
       let parsedContent;
@@ -35,15 +43,11 @@
         parsedContent = parseCustomEmojis(text);
       }
 
-      // 명령어 및 메시지 길이 제한 필터
-      if (cmd && text.startsWith("!")) return;
-      if (text.length > cap) return;
-
       const message = {
         id: data.id,
         content: parsedContent,
         speed: calcSpeed(text.length),
-        top: Math.floor(Math.random() * 80) + "vh",
+        top: Math.random(), // 0~1, 실제 위치는 화면 높이 - 메시지 높이 범위 안에서 계산
         color: clr,
       };
 
@@ -51,9 +55,16 @@
     });
   });
 
-  // 속도 계산 (메시지 길이에 따라)
+  // 속도 계산 (메시지 길이에 따라, 최소 2초)
   function calcSpeed(length) {
-    return `${10 - length / 50}s`;
+    return Math.max(10 - length / 50, 2);
+  }
+
+  // 배율이 커져도 scale=1일 때와 같은 px/s로 흐르도록 이동 거리(화면 폭 + 메시지 폭) 비율만큼 시간 보정
+  function keepSpeed(node, seconds) {
+    const vw = window.innerWidth;
+    const w = node.offsetWidth;
+    node.style.animationDuration = `${(seconds * (vw + w)) / (vw + w / scale)}s`;
   }
 
   function parseCustomEmojis(text) {
@@ -73,13 +84,14 @@
   }
 </script>
 
-<div class="message-container">
+<div class="message-container" style="--scale: {scale};">
   {#each messages as message (message.id)}
     <div
       class="message"
       data-id={message.id}
       onanimationend={() => handleAnimationEnd(message.id)}
-      style="color: {message.color}; top: {message.top}; animation-duration: {message.speed};"
+      use:keepSpeed={message.speed}
+      style="color: {message.color}; top: max(0px, calc((100vh - var(--h)) * {message.top}));"
     >
       {@html message.content}
     </div>
@@ -91,6 +103,7 @@
 
   /* 전체 메시지 컨테이너 */
   .message-container {
+    --sticker-size: calc(120px * var(--scale));
     position: absolute;
     top: 0;
     left: 0;
@@ -107,25 +120,27 @@
     position: absolute;
     left: 0;
     white-space: nowrap;
-    font-size: 64px;
+    font-size: calc(64px * var(--scale));
     font-weight: bold;
     color: white;
+    --o: calc(2px * var(--scale));
     text-shadow:
-      -2px -2px 0 #000,
-      2px -2px 0 #000,
-      -2px 2px 0 #000,
-      2px 2px 0 #000;
+      calc(-1 * var(--o)) calc(-1 * var(--o)) 0 #000,
+      var(--o) calc(-1 * var(--o)) 0 #000,
+      calc(-1 * var(--o)) var(--o) 0 #000,
+      var(--o) var(--o) 0 #000;
     animation: scroll linear forwards;
+    --h: calc(var(--sticker-size) + 0.35em); /* 메시지 최대 높이 (스티커 + 글자 descent) */
   }
 
   :global(.sticker) {
-    max-width: 120px;
-    max-height: 120px;
+    max-width: var(--sticker-size);
+    max-height: var(--sticker-size);
   }
 
   :global(.emote) {
-    max-width: 56px;
-    max-height: 56px;
+    max-width: calc(56px * var(--scale));
+    max-height: calc(56px * var(--scale));
   }
 
   /* 오른쪽에서 왼쪽으로 흐르는 애니메이션 */

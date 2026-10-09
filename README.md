@@ -19,3 +19,11 @@
 8. 소스코드 경로에서 터미널 열고 npm install
 9. 개발 이런 거 잘 모르면 그냥 npm run dev로 서버 실행 가능
 10. 터미널에 안내되는 주소를 obs 등에 넣어 이용 (ndi로 출력 등)
+
+### 출력 크기 조절
+터미널에 안내된 주소 뒤에 `?scale=배율`을 붙이면 글자/이모티콘/스티커 크기가 같이 바뀜. (기본값 1, 0.1~10)
+
+```
+http://localhost:5173/?scale=1.5   (npm run dev)
+http://localhost:3000/?scale=2     (npm run build 후 node build)
+```
