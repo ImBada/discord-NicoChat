@@ -43,6 +43,10 @@ export const POST = async () => {
         clients.push({id: clientId, emit });
         console.log(`Client connected: ${clientId}`);
 
+        // 첫 채팅 또는 30초 주기의 ping까지 응답 시작이 대기할 수 있으므로,
+        // 채팅이 없는 경우에도 응답이 즉시 시작되도록 초기 ping을 보냄
+        emit('ping', '');
+
         return () => {
             console.log(`Client disconnected: ${clientId}`);
             clients = clients.filter((client) => client.id !== clientId);
